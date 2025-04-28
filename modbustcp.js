@@ -179,7 +179,7 @@ module.exports = function(RED) {
     this.rateUnit = config.rateUnit;
     this.connection = null;
     this.ieeeType = config.ieeeType || 'off';
-    //this.ieeeBE =
+    //this.ieeeBE = 
     if (config.hasOwnProperty('ieeeBE')) {
       this.ieeeBE = (config.ieeeBE === "true");
     }
@@ -189,7 +189,6 @@ module.exports = function(RED) {
 
     const _DISCONNECTED = 0;
     const _CONNECTED = 1;
-
     const ee = new emitter.EventEmitter();
 
     let socket = new net.Socket();
@@ -211,7 +210,8 @@ module.exports = function(RED) {
       timerID = null;
     };
 
-    node.onConnectEvent = function () {};
+    node.onConnectEvent = function () {
+    };
 
     node.onReadyEvent = function(){
 
