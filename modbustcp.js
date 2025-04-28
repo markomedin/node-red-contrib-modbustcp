@@ -206,13 +206,26 @@ module.exports = function(RED) {
             retryTimer = setInterval(() => {
                 if (modbusTCPServer.getState() === 'disconnected' && !socket.connecting && socket.readyState !== 'open') {
                     node.status({ fill: "yellow", shape: "dot", text: "Reconnecting..." });
-                    modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-                        node.connection = connection;
-                        node.status({ fill: "blue", shape: "dot", text: "Reconnected" });
-                        clearRetryTimer();
-                    });
+                    try {
+                        modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+                            node.connection = connection;
+                            node.status({ fill: "blue", shape: "dot", text: "Reconnected" });
+                            clearRetryTimer();
+                        });
+                    } catch (err) {
+                        node.error(`Reconnection failed: ${err.message}`);
+                    }
                 }
             }, RETRY_INTERVAL);
+        }
+    }
+
+    function handleSocketError(err) {
+        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') {
+            node.warn(`Socket error: ${err.code}. Retrying connection...`);
+            startRetryTimer();
+        } else {
+            node.error(`Unexpected socket error: ${err.message}`);
         }
     }
 
@@ -284,6 +297,13 @@ module.exports = function(RED) {
             
     }; //onReadyEvent
 
+    node.onErrorEvent = function(err) {
+      node.status({ fill: "red", shape: "dot", text: "Error" });
+      timestamplog(node.name + ":" + "Error: " + err.message);
+      handleSocketError(err);
+      socket.destroy();
+    }
+
     if (compver(process.versions.node,'9.11.0') >= 0){
       socket.on("connect", node.onConnectEvent);
     } else {
@@ -292,6 +312,7 @@ module.exports = function(RED) {
 
     socket.on("ready", node.onReadyEvent);
     socket.on("close", node.onCloseEvent);
+    socket.on("error", node.onErrorEvent);
 
     modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent,function(connection) {
       node.connection = connection;
