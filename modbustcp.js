@@ -179,13 +179,19 @@ module.exports = function(RED) {
     this.rateUnit = config.rateUnit;
     this.connection = null;
     this.ieeeType = config.ieeeType || 'off';
-    this.ieeeBE = config.hasOwnProperty('ieeeBE') ? (config.ieeeBE === "true") : true;
+    //this.ieeeBE =
+    if (config.hasOwnProperty('ieeeBE')) {
+      this.ieeeBE = (config.ieeeBE === "true");
+    }
+    else{
+      this.ieeeBE = true;
+    }
 
     const _DISCONNECTED = 0;
     const _CONNECTED = 1;
 
-    const RETRY_INTERVAL = 5000; // Retry every 5 seconds
-    let retryTimer = null;
+    // const RETRY_INTERVAL = 5000; // Retry every 5 seconds
+    // let retryTimer = null;
 
     const ee = new emitter.EventEmitter();
 
@@ -201,52 +207,52 @@ module.exports = function(RED) {
     let timerID; // used for single node (non-inject) modbus event
     let timers = {}; // used as a collection of running timers externally injected
 
-    function startRetryTimer() {
-        if (!retryTimer) {
-            retryTimer = setInterval(() => {
-                if (modbusTCPServer.getState() === 'disconnected' && !socket.connecting && socket.readyState !== 'open') {
-                    node.status({ fill: "yellow", shape: "dot", text: "Reconnecting..." });
-                    try {
-                        modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-                            node.connection = connection;
-                            node.status({ fill: "blue", shape: "dot", text: "Reconnected" });
-                            clearRetryTimer();
-                        });
-                    } catch (err) {
-                        node.error(`Reconnection failed: ${err.message}`);
-                    }
-                }
-            }, RETRY_INTERVAL);
-        }
-    }
+    // function startRetryTimer() {
+    //     if (!retryTimer) {
+    //         retryTimer = setInterval(() => {
+    //             if (modbusTCPServer.getState() === 'disconnected' && !socket.connecting && socket.readyState !== 'open') {
+    //                 node.status({ fill: "yellow", shape: "dot", text: "Reconnecting..." });
+    //                 try {
+    //                     modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+    //                         node.connection = connection;
+    //                         node.status({ fill: "blue", shape: "dot", text: "Reconnected" });
+    //                         clearRetryTimer();
+    //                     });
+    //                 } catch (err) {
+    //                     node.error(`Reconnection failed: ${err.message}`);
+    //                 }
+    //             }
+    //         }, RETRY_INTERVAL);
+    //     }
+    // }
+    //
+    // function handleSocketError(err) {
+    //     if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') {
+    //         node.warn(`Socket error: ${err.code}. Retrying connection...`);
+    //         startRetryTimer();
+    //     } else {
+    //         node.error(`Unexpected socket error: ${err.message}`);
+    //     }
+    // }
 
-    function handleSocketError(err) {
-        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') {
-            node.warn(`Socket error: ${err.code}. Retrying connection...`);
-            startRetryTimer();
-        } else {
-            node.error(`Unexpected socket error: ${err.message}`);
-        }
-    }
-
-    function clearRetryTimer() {
-        if (retryTimer) {
-            clearInterval(retryTimer);
-            retryTimer = null;
-        }
-    }
+    // function clearRetryTimer() {
+    //     if (retryTimer) {
+    //         clearInterval(retryTimer);
+    //         retryTimer = null;
+    //     }
+    // }
 
     node.onCloseEvent = function() {
       timestamplog(node.name + " was disconnected or was unable to connect");
       node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
       clearInterval(timerID);
       timerID = null;
-      startRetryTimer();
+      // startRetryTimer();
     };
 
     node.onConnectEvent = function () {
-        node.status({ fill: "green", shape: "circle", text: "Connected" });
-        clearRetryTimer();
+        // node.status({ fill: "green", shape: "circle", text: "Connected" });
+        // clearRetryTimer();
     };
 
     node.onReadyEvent = function(){
@@ -297,12 +303,12 @@ module.exports = function(RED) {
             
     }; //onReadyEvent
 
-    node.onErrorEvent = function(err) {
-      node.status({ fill: "red", shape: "dot", text: "Error" });
-      timestamplog(node.name + ":" + "Error: " + err.message);
-      handleSocketError(err);
-      socket.destroy();
-    }
+    // node.onErrorEvent = function(err) {
+    //   node.status({ fill: "red", shape: "dot", text: "Error" });
+    //   timestamplog(node.name + ":" + "Error: " + err.message);
+    //   handleSocketError(err);
+    //   socket.destroy();
+    // }
 
     if (compver(process.versions.node,'9.11.0') >= 0){
       socket.on("connect", node.onConnectEvent);
@@ -312,7 +318,7 @@ module.exports = function(RED) {
 
     socket.on("ready", node.onReadyEvent);
     socket.on("close", node.onCloseEvent);
-    socket.on("error", node.onErrorEvent);
+    // socket.on("error", node.onErrorEvent);
 
     modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent,function(connection) {
       node.connection = connection;
@@ -324,7 +330,7 @@ module.exports = function(RED) {
 
       clearInterval(timerID);
       timerID = null;
-      clearRetryTimer();
+      // clearRetryTimer();
 
       for (var property in timers){
         if (timers.hasOwnProperty(property)){
@@ -348,6 +354,15 @@ module.exports = function(RED) {
 
       if (msg.hasOwnProperty('restart') && msg.restart === true) {
             node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+
+            // Close the old connection if it exists
+            if (socket) {
+                socket.removeAllListeners();
+                socket.destroy();
+                socket = null;
+                node.connection = null;
+            }
+
             modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
                 node.connection = connection;
                 node.status({ fill: "green", shape: "dot", text: "Restarted" });
