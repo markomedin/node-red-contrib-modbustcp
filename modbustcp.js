@@ -179,16 +179,14 @@ module.exports = function(RED) {
     this.rateUnit = config.rateUnit;
     this.connection = null;
     this.ieeeType = config.ieeeType || 'off';
-    //this.ieeeBE = 
-    if (config.hasOwnProperty('ieeeBE')) {
-      this.ieeeBE = (config.ieeeBE === "true");
-    }
-    else{
-      this.ieeeBE = true;
-    }
+    this.ieeeBE = config.hasOwnProperty('ieeeBE') ? (config.ieeeBE === "true") : true;
 
     const _DISCONNECTED = 0;
     const _CONNECTED = 1;
+
+    const RETRY_INTERVAL = 5000; // Retry every 5 seconds
+    let retryTimer = null;
+
     const ee = new emitter.EventEmitter();
 
     let socket = new net.Socket();
@@ -203,14 +201,39 @@ module.exports = function(RED) {
     let timerID; // used for single node (non-inject) modbus event
     let timers = {}; // used as a collection of running timers externally injected
 
+    function startRetryTimer() {
+        if (!retryTimer) {
+            retryTimer = setInterval(() => {
+                if (modbusTCPServer.getState() === 'disconnected') {
+                    node.status({ fill: "yellow", shape: "dot", text: "Reconnecting..." });
+                    modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+                        node.connection = connection;
+                        node.status({ fill: "blue", shape: "dot", text: "Reconnected" });
+                        clearRetryTimer();
+                    });
+                }
+            }, RETRY_INTERVAL);
+        }
+    }
+
+    function clearRetryTimer() {
+        if (retryTimer) {
+            clearInterval(retryTimer);
+            retryTimer = null;
+        }
+    }
+
     node.onCloseEvent = function() {
       timestamplog(node.name + " was disconnected or was unable to connect");
       node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
       clearInterval(timerID);
       timerID = null;
+      startRetryTimer();
     };
 
-    node.onConnectEvent = function() {
+    node.onConnectEvent = function () {
+        node.status({ fill: "green", shape: "circle", text: "Connected" });
+        clearRetryTimer();
     };
 
     node.onReadyEvent = function(){
@@ -280,6 +303,7 @@ module.exports = function(RED) {
 
       clearInterval(timerID);
       timerID = null;
+      clearRetryTimer();
 
       for (var property in timers){
         if (timers.hasOwnProperty(property)){
@@ -299,7 +323,15 @@ module.exports = function(RED) {
       //socket.close();
     });
 
-    node.on("input", msg => {
+    node.on("input", (msg) => {
+
+      if (msg.hasOwnProperty('restart') && msg.restart === true) {
+            node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+            modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+                node.connection = connection;
+                node.status({ fill: "green", shape: "dot", text: "Restarted" });
+            });
+      }
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
         if (msg.hasOwnProperty('payload') && msg.payload.hasOwnProperty('name') && msg.payload.name ){
