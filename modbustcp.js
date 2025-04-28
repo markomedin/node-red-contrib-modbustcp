@@ -353,20 +353,24 @@ module.exports = function(RED) {
     node.on("input", (msg) => {
 
       if (msg.hasOwnProperty('restart') && msg.restart === true) {
-            node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+          node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
 
-            // Close the old connection if it exists
-            if (socket) {
-                socket.removeAllListeners();
-                socket.destroy();
-                socket = null;
-                node.connection = null;
-            }
+          // Close the old connection if it exists
+          if (socket) {
+              socket.removeAllListeners();
+              socket.destroy();
+              socket = null;
+              node.connection = null;
+          }
 
-            modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-                node.connection = connection;
-                node.status({ fill: "green", shape: "dot", text: "Restarted" });
-            });
+          // Create a new socket instance
+          socket = new net.Socket();
+
+          // Initialize a new connection
+          modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+              node.connection = connection;
+              node.status({ fill: "green", shape: "dot", text: "Restarted" });
+          });
       }
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
