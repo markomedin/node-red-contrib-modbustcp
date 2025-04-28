@@ -210,7 +210,7 @@ module.exports = function(RED) {
       timerID = null;
     };
 
-    node.onConnectEvent = function () {
+    node.onConnectEvent = function() {
     };
 
     node.onReadyEvent = function(){
