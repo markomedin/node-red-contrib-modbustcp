@@ -84,6 +84,11 @@ module.exports = function(RED) {
     node.initializeModbusTCPConnection = function(socket, onConnect,handler) {
       timestamplog( `Connecting to modbustcp slave at ${node.host}:${node.port} unit_id: ${node.unit_id}`);
 
+      if (socket.connecting || socket.readyState === 'open') {
+        debug('Socket is already connecting or connected. Skipping reconnection.');
+        return;
+      }
+
       if (Number(node.reconnecttimeout) > 0) {
         consettings.autoReconnect = true;
         consettings.reconnectTimeout = Number(node.reconnecttimeout) * 1000;
