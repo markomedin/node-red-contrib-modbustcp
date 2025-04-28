@@ -204,7 +204,7 @@ module.exports = function(RED) {
     function startRetryTimer() {
         if (!retryTimer) {
             retryTimer = setInterval(() => {
-                if (modbusTCPServer.getState() === 'disconnected') {
+                if (modbusTCPServer.getState() === 'disconnected' && !socket.connecting && socket.readyState !== 'open') {
                     node.status({ fill: "yellow", shape: "dot", text: "Reconnecting..." });
                     modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
                         node.connection = connection;
