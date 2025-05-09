@@ -120,8 +120,8 @@ module.exports = function(RED) {
         debug('socket closed. HadError = ', hadError);
         this._state = 'disconnected';
 
-        // Update Node-RED status to "Disconnected"
-        node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
+        // Update Node-RED status to "Error"
+        node.status({ fill: "red", shape: "dot", text: "Error" });
       }
       
       const _onErrorEvent = (err) => {
@@ -131,8 +131,8 @@ module.exports = function(RED) {
             debug(errorMessage);
             this._state = 'error';
 
-            // Update Node-RED status to "Disconnected"
-            node.status({ fill: "red", shape: "dot", text: "Disconnected" });
+            // Update Node-RED status to "Error"
+            node.status({ fill: "red", shape: "dot", text: "Error" });
 
             // Clean up the current socket
             socket.destroy();
