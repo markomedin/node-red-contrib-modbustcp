@@ -349,7 +349,7 @@ module.exports = function(RED) {
           modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
               clearTimeout(reconnectTimeout); // Clear timeout on successful connection
               node.connection = connection;
-              node.status({ fill: "green", shape: "dot", text: "Connected" }); // Update status to "Connected"
+              node.status({ fill: "blue", shape: "dot", text: "Restarted" });
           });
       }
 
