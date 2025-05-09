@@ -122,11 +122,25 @@ module.exports = function(RED) {
       }
       
       const _onErrorEvent = (err) => {
-        node.error(`socket error: ${err.name}: ${err.message}`)
-        debug(`socket error: ${err.name}: ${err.message}`)
-        this._state = 'error';
-        socket.destroy();
-        //socket.connect(consettings);
+        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') {
+            const errorMessage = `Socket error: ${err.code}. Unable to connect to ${consettings.host}:${consettings.port}`;
+            node.error(errorMessage, { error: err }); // Expose the error to Node-RED
+            debug(errorMessage);
+            this._state = 'error';
+
+            // Clean up the current socket
+            socket.destroy();
+
+            // Attempt reconnection after a delay
+            setTimeout(() => {
+                debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
+                socket.connect(consettings);
+            }, 5000); // Retry after 5 seconds
+        } else {
+            const unexpectedError = `Unexpected socket error: ${err.message}`;
+            node.error(unexpectedError, { error: err });
+            debug(unexpectedError);
+        }
       }
       
       
@@ -315,10 +329,18 @@ module.exports = function(RED) {
           // Create a new socket instance
           socket = new net.Socket();
 
-          // Initialize a new connection
+          // Initialize a new connection with a timeout
+          const reconnectTimeout = setTimeout(() => {
+              if (modbusTCPServer.getState() !== 'ready') {
+                  node.status({ fill: "red", shape: "dot", text: "Reconnection Failed" });
+                  socket.destroy();
+              }
+          }, 10000); // 10 seconds timeout
+
           modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+              clearTimeout(reconnectTimeout); // Clear timeout on successful connection
               node.connection = connection;
-              node.status({ fill: "green", shape: "dot", text: "Restarted" });
+              node.status({ fill: "green", shape: "dot", text: "Connected" }); // Update status to "Connected"
           });
       }
 
