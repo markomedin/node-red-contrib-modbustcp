@@ -117,11 +117,25 @@ module.exports = function(RED) {
       }
 
       const _onCloseEvent = (hadError) => {
-        debug('socket closed. HadError = ', hadError);
+        debug('Socket closed. HadError = ', hadError);
+        node.debug('Socket closed. HadError = ', hadError);
         this._state = 'disconnected';
 
         // Update Node-RED status to "Error"
         node.status({ fill: "red", shape: "dot", text: "Error" });
+        
+        // Attempt reconnection after a delay
+        setTimeout(() => {
+            if (this._state !== 'connecting' && this._state !== 'connected') {
+                debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
+                node.debug('Reconnecting to %s:%d...', consettings.host, consettings.port);
+                this._state = 'connecting';
+                socket.connect(consettings);
+            } else {
+                debug('Reconnection skipped: already connecting or connected.');
+                node.debug('Reconnection skipped: already connecting or connected.');
+            }
+        }, 5000); // Retry after 5 seconds
       }
       
       const _onErrorEvent = (err) => {
@@ -135,13 +149,28 @@ module.exports = function(RED) {
             node.status({ fill: "red", shape: "dot", text: "Error" });
 
             // Clean up the current socket
-            socket.destroy();
+            if (socket && !socket.destroyed) {
+                socket.destroy();
+            }
 
             // Attempt reconnection after a delay
             setTimeout(() => {
-                debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
-                socket.connect(consettings);
+                if (this._state !== 'connecting' && this._state !== 'connected') {
+                    debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
+                    node.debug('Reconnecting to %s:%d...', consettings.host, consettings.port);
+                    this._state = 'connecting';
+                    socket.connect(consettings);
+                } else {
+                    debug('Reconnection skipped: already connecting or connected.');
+                    node.debug('Reconnection skipped: already connecting or connected.');
+                }
             }, 5000); // Retry after 5 seconds
+        } else if (err.code === 'EALREADY') {
+        const errorMessage = `Socket error: ${err.code}. Connection already in progress to ${consettings.host}:${consettings.port}`;
+        node.warn(errorMessage); // Log the warning
+        debug(errorMessage);
+
+        // Do not destroy the socket or retry, as the connection is already in progress
         } else {
             const unexpectedError = `Unexpected socket error: ${err.message}`;
             node.error(unexpectedError, { error: err });
@@ -325,7 +354,14 @@ module.exports = function(RED) {
     node.on("input", (msg) => {
 
       if (msg.hasOwnProperty('restart') && msg.restart === true) {
+          // Update status to indicate restarting
           node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+          
+          // Prevent multiple reconnection attempts
+          if (modbusTCPServer.getState() === 'connecting') {
+              node.warn("Reconnection already in progress. Restart skipped.");
+              return;
+          }
 
           // Close the old connection if it exists
           if (socket) {
@@ -349,7 +385,7 @@ module.exports = function(RED) {
           modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
               clearTimeout(reconnectTimeout); // Clear timeout on successful connection
               node.connection = connection;
-              node.status({ fill: "blue", shape: "dot", text: "Restarted" });
+              node.status({ fill: "green", shape: "dot", text: "Restarted" });
           });
       }
 
@@ -642,11 +678,11 @@ module.exports = function(RED) {
     };
 
     node.onConnectEvent = function() {
-      node.status({ fill: "green", shape: "circle", text: "Connected" });
+      node.status({ fill: "green", shape: "circle", text: "Connected - Waiting" });
     };
 
     node.onReadyEvent = function() {
-      node.status({fill: "green", shape: "dot", text: "Ready"})
+      node.status({fill: "green", shape: "dot", text: "Polling: Ready"})
     }
 
     socket.on("connect", node.onConnectEvent);
