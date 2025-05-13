@@ -118,7 +118,7 @@ module.exports = function(RED) {
 
       const _onCloseEvent = (hadError) => {
         debug('Socket closed. HadError = ', hadError);
-        node.debug('Socket closed. HadError = ', hadError);
+        node.debug(`Socket closed. HadError = ${hadError}`);
         this._state = 'disconnected';
 
         // Update Node-RED status to "Error"
@@ -128,7 +128,7 @@ module.exports = function(RED) {
         setTimeout(() => {
             if (this._state !== 'connecting' && this._state !== 'connected') {
                 debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
-                node.debug('Reconnecting to %s:%d...', consettings.host, consettings.port);
+                node.debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
                 this._state = 'connecting';
                 socket.connect(consettings);
             } else {
