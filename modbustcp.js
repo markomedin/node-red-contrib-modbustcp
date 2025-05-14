@@ -123,58 +123,37 @@ module.exports = function(RED) {
         // Update Node-RED status to "Disconnected"
         node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
         
-        // Attempt reconnection after a delay
-        setTimeout(() => {
-            if (this._state !== 'connecting' && this._state !== 'connected') {
-                debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
-                node.debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
-                this._state = 'connecting';
-                socket.connect(consettings);
-            } else {
-                debug('Reconnection skipped: already connecting or connected.');
-                node.debug('Reconnection skipped: already connecting or connected.');
-            }
-        }, 5000); // Retry after 5 seconds
+        // Automatically emit a restart input
+        if (this._state !== 'restarting') {
+            this._state = 'restarting';
+            node.emit("input", { restart: true });
+        }
       }
       
       const _onErrorEvent = (err) => {
-        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED') {
+        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ECONNRESET') {
             const errorMessage = `Socket error: ${err.code}. Unable to connect to ${consettings.host}:${consettings.port}`;
-            node.error(errorMessage, { error: err }); // Expose the error to Node-RED
+            node.error(errorMessage, { error: err });
             debug(errorMessage);
             this._state = 'error';
 
             // Update Node-RED status to "Error"
             node.status({ fill: "red", shape: "dot", text: "Error" });
-
-            // Clean up the current socket
-            if (socket && !socket.destroyed) {
-                socket.destroy();
+            
+            // Automatically emit a restart input
+            if (this._state !== 'restarting') {
+                this._state = 'restarting';
+                node.emit("input", { restart: true });
             }
-
-            // Attempt reconnection after a delay
-            setTimeout(() => {
-                if (this._state !== 'connecting' && this._state !== 'connected') {
-                    debug(`Reconnecting to ${consettings.host}:${consettings.port}...`);
-                    node.debug('Reconnecting to %s:%d...', consettings.host, consettings.port);
-                    this._state = 'connecting';
-                    socket.connect(consettings);
-                } else {
-                    debug('Reconnection skipped: already connecting or connected.');
-                    node.debug('Reconnection skipped: already connecting or connected.');
-                }
-            }, 5000); // Retry after 5 seconds
         } else if (err.code === 'EALREADY') {
         const errorMessage = `Socket error: ${err.code}. Connection already in progress to ${consettings.host}:${consettings.port}`;
         node.warn(errorMessage); // Log the warning
         debug(errorMessage);
-
         // Do not destroy the socket or retry, as the connection is already in progres
         } else if (err.code === 'EISCONN') {
         const errorMessage = `Socket error: ${err.code}. Connection already established to ${consettings.host}:${consettings.port}`;
         node.warn(errorMessage);
         debug(errorMessage);
-
         // Do not retry, as the connection is already established
         } else {
             const unexpectedError = `Unexpected socket error: ${err.message}`;
@@ -359,39 +338,56 @@ module.exports = function(RED) {
     node.on("input", (msg) => {
 
       if (msg.hasOwnProperty('restart') && msg.restart === true) {
-          // Update status to indicate restarting
-          node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
-          
-          // Prevent multiple reconnection attempts
-          if (modbusTCPServer.getState() === 'connecting') {
+          if (this._state === 'restarting') {
               node.warn("Reconnection already in progress. Restart skipped.");
               return;
           }
+  
+          this._state = 'restarting';
+          node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
 
-          // Close the old connection if it exists
-          if (socket) {
-              socket.removeAllListeners();
-              socket.destroy();
-              socket = null;
-              node.connection = null;
-          }
+          let retryCount = 0;
+          const maxRetries = 5;
+          const retryDelay = 5000; // 5 seconds
+          const attemptRestart = () => {
+            // Close the old connection if it exists
+            if (socket) {
+                socket.removeAllListeners();
+                socket.destroy();
+                socket = null;
+                node.connection = null;
+            }
 
-          // Create a new socket instance
-          socket = new net.Socket();
+            // Create a new socket instance
+            socket = new net.Socket();
 
-          // Initialize a new connection with a timeout
-          const reconnectTimeout = setTimeout(() => {
-              if (modbusTCPServer.getState() !== 'ready') {
-                  node.status({ fill: "red", shape: "dot", text: "Reconnection Failed" });
-                  socket.destroy();
-              }
-          }, 10000); // 10 seconds timeout
+            // Initialize a new connection
+            modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+                if (modbusTCPServer.getState() === 'ready') {
+                    this._state = 'connected';
+                    node.connection = connection;
+                    node.status({ fill: "green", shape: "dot", text: "Restarted" });
+                    retryCount = 0; // Reset retry count on success
+                } else {
+                    handleRestartFailure();
+                }
+            });
+        };
+          const handleRestartFailure = () => {
+            retryCount++;
+            if (retryCount > maxRetries) {
+                this._state = 'error';
+                node.status({ fill: "red", shape: "dot", text: "Restart failed" });
+                node.error("Maximum restart attempts reached. Restart failed.");
+                return;
+                }
 
-          modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-              clearTimeout(reconnectTimeout); // Clear timeout on successful connection
-              node.connection = connection;
-              node.status({ fill: "green", shape: "dot", text: "Restarted" });
-          });
+                node.warn(`Restart attempt ${retryCount} failed. Retrying in ${retryDelay / 1000} seconds...`);
+                setTimeout(attemptRestart, retryDelay);
+            };
+
+          // Start the first restart attempt
+          attemptRestart();
       }
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
