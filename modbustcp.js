@@ -372,7 +372,7 @@ module.exports = function(RED) {
                     handleRestartFailure();
                 }
             });
-        };
+          };
           const handleRestartFailure = () => {
             retryCount++;
             if (retryCount > maxRetries) {
