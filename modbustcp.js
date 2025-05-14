@@ -118,11 +118,10 @@ module.exports = function(RED) {
 
       const _onCloseEvent = (hadError) => {
         debug('Socket closed. HadError = ', hadError);
-        node.debug(`Socket closed. HadError = ${hadError}`);
         this._state = 'disconnected';
 
-        // Update Node-RED status to "Error"
-        node.status({ fill: "red", shape: "dot", text: "Error" });
+        // Update Node-RED status to "Disconnected"
+        node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
         
         // Attempt reconnection after a delay
         setTimeout(() => {
@@ -170,7 +169,13 @@ module.exports = function(RED) {
         node.warn(errorMessage); // Log the warning
         debug(errorMessage);
 
-        // Do not destroy the socket or retry, as the connection is already in progress
+        // Do not destroy the socket or retry, as the connection is already in progres
+        } else if (err.code === 'EISCONN') {
+        const errorMessage = `Socket error: ${err.code}. Connection already established to ${consettings.host}:${consettings.port}`;
+        node.warn(errorMessage);
+        debug(errorMessage);
+
+        // Do not retry, as the connection is already established
         } else {
             const unexpectedError = `Unexpected socket error: ${err.message}`;
             node.error(unexpectedError, { error: err });
