@@ -158,7 +158,7 @@ module.exports = function(RED) {
         node.status({
             fill: "red",
             shape: "dot",
-            text: `Disconnected from ${identifier}`
+            text: `Error on ${identifier}: ${err.name}`
         });
         // updateStatus({
         //     fill: "red",
@@ -382,7 +382,7 @@ module.exports = function(RED) {
         socket = new net.Socket();
         modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
             node.connection = connection;
-            node.status({ fill: "green", shape: "dot", text: "Connected" });
+            node.status({ fill: "green", shape: "dot", text: "Restarted" });
         });
 
         node.log("Restart complete.");
