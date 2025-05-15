@@ -132,9 +132,9 @@ module.exports = function(RED) {
         }
         debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         this._state = 'error';
-        node.log("Destroying socket in ModbusTCPServerNode(config)...");
+        node.log("Destroying socket in ModbusTCPServerNode...");
         socket.destroy();
-        node.log(`Detected socket error in ModbusTCPServerNode: ${err.name}: ${err.message}`);
+        node.log(`Detected socket error in ModbusTCPServerNode: ${err.message}`);
         node.status({
             fill: "red",
             shape: "dot",
@@ -327,7 +327,6 @@ module.exports = function(RED) {
         //     }}
         // Clean up the socket and connection
         if (node.connection) {
-            node.log("Closing connection...");
             node.log("Closed connection in ModbusTCPRead on kill event");
             node.connection = null;
         }
@@ -342,9 +341,8 @@ module.exports = function(RED) {
       }
 
       if (msg.hasOwnProperty("restart") && msg.restart === true) {
-        // Step 1: Safely close the connection
+        // Clean up the socket and connection
         if (node.connection) {
-            node.log("Closing connection...");
             node.log("Closed connection in ModbusTCPRead on restart event");
             node.connection = null;
         }
@@ -354,10 +352,10 @@ module.exports = function(RED) {
         //     socket.destroy();
         // }
 
-        // Step 2: Update status to indicate restart
+        //Update status to indicate restart
         node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
 
-        // Step 3: Reinitialize the client and start connection
+        //Reinitialize the client and start connection
         node.log("Reinitializing connection...");
         socket = new net.Socket();
         modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
