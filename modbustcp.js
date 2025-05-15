@@ -302,11 +302,23 @@ module.exports = function(RED) {
     node.on("input", msg => {
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
-        if (msg.hasOwnProperty('payload') && msg.payload.hasOwnProperty('name') && msg.payload.name ){
-          if (timers.hasOwnProperty(msg.payload.name)){
-            clearInterval(timers[msg.payload.name]);
-          }
+        // Kill all timers
+        for (const timerName in timers) {
+            if (timers.hasOwnProperty(timerName)) {
+                clearInterval(timers[timerName]);
+                delete timers[timerName];
+            }
+        // Clean up the socket and connection
+        if (node.connection) {
+            node.log("Closing connection...");
+            node.connection.close();
+            node.connection = null;
         }
+        if (socket) {
+            node.log("Destroying socket...");
+            socket.destroy();
+        }
+        node.status({ fill: "grey", shape: "dot", text: "Killed" });
         return;
       }
 
