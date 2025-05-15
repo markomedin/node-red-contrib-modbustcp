@@ -154,6 +154,12 @@ module.exports = function(RED) {
       socket.on('error', _onErrorEvent);
       socket.on('timeout', _onTimeoutEvent );
 
+      // Listen for the custom error event
+      socket.on('custom_error', (err) => {
+        node.error(`Custom error detected: ${err.message}`);
+        _onErrorEvent(err);
+      });
+
       recon = new Reconnect(socket,consettings);
 
       socket.connect(consettings);
@@ -167,6 +173,10 @@ module.exports = function(RED) {
         socket.removeListener('close', _onCloseEvent);
         socket.removeListener('error', _onErrorEvent);
         socket.removeListener('timeout', _onTimeoutEvent );
+        socket.removeListener('custom_error', (err) => {
+          node.error(`Custom error detected: ${err.message}`);
+          _onErrorEvent(err);
+        });
         recon.end();
       });
 
@@ -615,7 +625,7 @@ module.exports = function(RED) {
         });
 
         node.error("ModbusTCPClient: " + JSON.stringify(err));
-        socket.emit('error',{err: 'local error', message: 'Locally emitted error'});
+        socket.emit('custom_error',{err: 'local error', message: 'Locally emitted error'});
         return false;
       }
       return true;
