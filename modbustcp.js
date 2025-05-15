@@ -142,7 +142,6 @@ module.exports = function(RED) {
 
       const _onErrorEvent = (err) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        node.error(`socket error for ${identifier}: ${err.name}: ${err.message}`);
         if (lastSocketErrorMessage !== err.message) {
             node.error(`socket error for ${identifier}: ${err.name}: ${err.message}`);
             lastSocketErrorMessage = err.message;
@@ -343,7 +342,6 @@ module.exports = function(RED) {
         // Clean up the socket and connection
         if (node.connection) {
             node.log("Closing connection...");
-            node.connection.close();
             node.connection = null;
         }
         if (socket) {
@@ -358,7 +356,6 @@ module.exports = function(RED) {
         // Step 1: Safely close the connection
         if (node.connection) {
             node.log("Closing existing connection...");
-            node.connection.close();
             node.connection = null;
         }
         if (socket) {
