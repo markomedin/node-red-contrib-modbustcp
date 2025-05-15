@@ -116,40 +116,17 @@ module.exports = function(RED) {
         debug('socket ready');
       }
 
-      let lastStatus = null;
-      let lastStatusTimestamp = 0;
-
-      const updateStatus = (status) => {
-          const now = Date.now();
-          if (status !== lastStatus || now - lastStatusTimestamp > 1000) { // 1-second threshold
-              node.status(status);
-              lastStatus = status;
-              lastStatusTimestamp = now;
-          }
-      };
-
       const _onCloseEvent = (hadError) => {
-        const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        debug(`socket closed for ${identifier}. HadError = ${hadError}`);
+        debug('socket closed. HadError = ', hadError);
         this._state = 'disconnected';
-        updateStatus({
-            fill: "red",
-            shape: "dot",
-            text: `Disconnected from ${identifier}`
-        });
       }
 
       const _onErrorEvent = (err) => {
-        const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        node.error(`socket error for ${identifier}: ${err.name}: ${err.message}`);
-        debug(`socket error for ${identifier}: ${err.name}: ${err.message}`);
+        node.error(`socket error: ${err.name}: ${err.message}`)
+        debug(`socket error: ${err.name}: ${err.message}`)
         this._state = 'error';
         socket.destroy();
-        updateStatus({
-            fill: "red",
-            shape: "dot",
-            text: `Disconnected from ${identifier}`
-        });
+        //socket.connect(consettings);
       }
 
 
@@ -325,52 +302,11 @@ module.exports = function(RED) {
     node.on("input", msg => {
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
-        // Kill all timers
-        for (const timerName in timers) {
-            if (timers.hasOwnProperty(timerName)) {
-                clearInterval(timers[timerName]);
-                delete timers[timerName];
-            }
-        // Clean up the socket and connection
-        if (node.connection) {
-            node.log("Closing connection...");
-            node.connection.close();
-            node.connection = null;
+        if (msg.hasOwnProperty('payload') && msg.payload.hasOwnProperty('name') && msg.payload.name ){
+          if (timers.hasOwnProperty(msg.payload.name)){
+            clearInterval(timers[msg.payload.name]);
+          }
         }
-        if (socket) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
-        node.status({ fill: "grey", shape: "dot", text: "Killed" });
-        return;
-      }
-      if (msg.hasOwnProperty("restart") && msg.restart === true) {
-        // Step 1: Safely close the connection
-        if (node.connection) {
-            node.log("Closing existing connection...");
-            node.connection.close();
-            node.connection = null;
-        }
-        if (socket) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
-
-        // Step 2: Update status to indicate restart
-        node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
-
-        // Step 3: Wait for 30 seconds
-        await new Promise((resolve) => setTimeout(resolve, 30000));
-
-        // Step 4: Reinitialize the client and start connection
-        node.log("Reinitializing connection...");
-        socket = new net.Socket();
-        modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-            node.connection = connection;
-            node.status({ fill: "green", shape: "dot", text: "Connected" });
-        });
-
-        node.log("Restart complete.");
         return;
       }
 
