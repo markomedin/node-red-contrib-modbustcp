@@ -147,16 +147,14 @@ module.exports = function(RED) {
         node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         this._state = 'error';
-        node.log("Destroying socket in ModbusTCPServerNode...");
-        socket.destroy();
-        // Explicitly emit the close event
-        socket.emit('close', true); // Pass `true` to indicate an error occurred
         node.log(`Detected socket error in ModbusTCPServerNode: ${err.message}`);
         node.status({
             fill: "red",
             shape: "dot",
             text: `Disconnected`
         });
+        // Explicitly emit the close event
+        socket.emit('close', true); // Pass `true` to indicate an error occurred
       }
 
       const _onTimeoutEvent = () => {
