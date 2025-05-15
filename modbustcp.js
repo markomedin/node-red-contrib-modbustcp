@@ -231,8 +231,13 @@ module.exports = function(RED) {
     let timers = {}; // used as a collection of running timers externally injected
 
     node.onCloseEvent = function() {
-      node.log(node.name + " was disconnected or was unable to connect");
-      node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
+      const identifier = `${modbusTCPServer.host}:${modbusTCPServer.port} (${node.name || "Unnamed"})`;
+      node.log(`Disconnected from ${identifier}`);
+      node.status({
+        fill: "red",
+        shape: "dot",
+        text: `Disconnected from ${identifier}`
+      });
       clearInterval(timerID);
       timerID = null;
     };
