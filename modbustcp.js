@@ -115,11 +115,31 @@ module.exports = function(RED) {
         debug('socket ready');
       }
 
+      let isRestarting = false; // Flag to track restart state
+
       const _onCloseEvent = (hadError) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
         debug(`Socket closed for ${identifier}. HadError = ${hadError}`);
         this._state = 'disconnected';
         node.log(`Socket closed for ${identifier}. HadError = ${hadError} in ModbusTCPServerNode`);
+
+        // Prevent multiple restarts
+        if (isRestarting) {
+          node.log("Restart already in progress. Skipping...");
+          return;
+        }
+
+        isRestarting = true; // Set the flag to prevent multiple triggers
+
+        // Trigger the restart input
+        node.log(`Restarting connection to ${identifier}...`);
+        node.emit("input", { restart: true });
+
+        // Reset the flag after a delay to allow the restart process to complete
+        setTimeout(() => {
+          isRestarting = false;
+          node.log("Restart flag reset.");
+        }, 30000); // Adjust the delay as needed
       }
 
       const _onErrorEvent = (err) => {
@@ -326,41 +346,39 @@ module.exports = function(RED) {
     node.on("input", msg => {
 
       if (msg.hasOwnProperty('kill') && msg.kill === true){
-        // Kill all timers
-        // for (const timerName in timers) {
-        //     if (timers.hasOwnProperty(timerName)) {
-        //         clearInterval(timers[timerName]);
-        //         delete timers[timerName];
-        //     }}
-        // Clean up the socket and connection
-        if (node.connection) {
-            node.log("Closed connection in ModbusTCPRead on kill event");
-            node.connection = null;
+        if (msg.hasOwnProperty('payload') && msg.payload.hasOwnProperty('name') && msg.payload.name ){
+          if (timers.hasOwnProperty(msg.payload.name)){
+            clearInterval(timers[msg.payload.name]);
+          }
         }
-
-        // if (socket && socket.destroyed === false) {
-        //     node.log("Destroying socket...");
-        //     socket.destroy();
-        // }
-        
-        node.status({ fill: "grey", shape: "dot", text: "Killed" });
         return;
       }
 
       if (msg.hasOwnProperty("restart") && msg.restart === true) {
-        // Clean up the socket and connection
-        if (node.connection) {
-            node.log("Closed connection in ModbusTCPRead on restart event");
-            node.connection = null;
-        }
-        
-        // if (socket && socket.destroyed === false) {
-        //     node.log("Destroying socket...");
-        //     socket.destroy();
-        // }
-
-        //Update status to indicate restart
+        // Update status to indicate restart
         node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+
+        // Log the restart process
+        node.log("Restarting connection...");
+
+        // Destroy existing socket if it exists
+        if (socket) {
+          node.log("Destroying existing socket...");
+          socket.destroy();
+          socket.removeAllListeners();
+        }
+
+        // Clear any active timers
+        if (timerID) {
+          node.log("Clearing active timers...");
+          clearInterval(timerID);
+          timerID = null;
+        }
+
+        // Reset state
+        node.connection = null;
+        bigArray = [];
+        node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
 
         //Reinitialize the client and start connection
         node.log("Reinitializing connection...");
