@@ -328,26 +328,26 @@ module.exports = function(RED) {
 
     node.on("input", msg => {
 
-      // if (msg.hasOwnProperty('kill') && msg.kill === true){
-      //   // Kill all timers
-      //   for (const timerName in timers) {
-      //       if (timers.hasOwnProperty(timerName)) {
-      //           clearInterval(timers[timerName]);
-      //           delete timers[timerName];
-      //       }}
-      //   // Clean up the socket and connection
-      //   if (node.connection) {
-      //       node.log("Closing connection...");
-      //       node.connection.close();
-      //       node.connection = null;
-      //   }
-      //   if (socket) {
-      //       node.log("Destroying socket...");
-      //       socket.destroy();
-      //   }
-      //   node.status({ fill: "grey", shape: "dot", text: "Killed" });
-      //   return;
-      // }
+      if (msg.hasOwnProperty('kill') && msg.kill === true){
+        // Kill all timers
+        // for (const timerName in timers) {
+        //     if (timers.hasOwnProperty(timerName)) {
+        //         clearInterval(timers[timerName]);
+        //         delete timers[timerName];
+        //     }}
+        // Clean up the socket and connection
+        if (node.connection) {
+            node.log("Closing connection...");
+            node.connection.close();
+            node.connection = null;
+        }
+        if (socket) {
+            node.log("Destroying socket...");
+            socket.destroy();
+        }
+        node.status({ fill: "grey", shape: "dot", text: "Killed" });
+        return;
+      }
 
       // if (msg.hasOwnProperty("restart") && msg.restart === true) {
       //   // Step 1: Safely close the connection
@@ -453,7 +453,7 @@ module.exports = function(RED) {
 
         if (params.name){
           timers[params.name] = loopId;
-          console.log("Current timers:", Object.keys(timers)); // Print active timers
+          // console.log("Current timers:", Object.keys(timers)); // Print active timers
         }
       }
 
