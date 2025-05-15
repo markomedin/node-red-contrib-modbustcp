@@ -364,10 +364,7 @@ module.exports = function(RED) {
         // Step 2: Update status to indicate restart
         node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
 
-        // Step 3: Wait for 30 seconds
-        await new Promise((resolve) => setTimeout(resolve, 30000));
-
-        // Step 4: Reinitialize the client and start connection
+        // Step 3: Reinitialize the client and start connection
         node.log("Reinitializing connection...");
         socket = new net.Socket();
         modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
