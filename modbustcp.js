@@ -121,7 +121,7 @@ module.exports = function(RED) {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
         debug(`Socket closed for ${identifier}. HadError = ${hadError}`);
         this._state = 'disconnected';
-        node.log(`Socket closed for ${identifier}. HadError = ${hadError}`);
+        node.log(`Socket closed for ${identifier}. HadError = ${hadError} in ModbusTCPServerNode`);
       }
 
       const _onErrorEvent = (err) => {
@@ -132,9 +132,9 @@ module.exports = function(RED) {
         }
         debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         this._state = 'error';
-        node.log("Destroying socket...");
+        node.log("Destroying socket in ModbusTCPServerNode(config)...");
         socket.destroy();
-        node.log(`Check point 1: ${err.name}`);
+        node.log(`Detected socket error in ModbusTCPServerNode: ${err.name}: ${err.message}`);
         node.status({
             fill: "red",
             shape: "dot",
@@ -217,7 +217,7 @@ module.exports = function(RED) {
 
     node.onCloseEvent = function() {
       const identifier = `${modbusTCPServer.host}:${modbusTCPServer.port} (${node.name || "Unnamed"})`;
-      node.log(`Disconnected from ${identifier}`);
+      node.log(`Disconnected from ${identifier} in ModbusTCPRead`);
       node.status({
         fill: "red",
         shape: "dot",
@@ -328,6 +328,7 @@ module.exports = function(RED) {
         // Clean up the socket and connection
         if (node.connection) {
             node.log("Closing connection...");
+            node.log("Closed connection in ModbusTCPRead on kill event");
             node.connection = null;
         }
 
@@ -343,7 +344,8 @@ module.exports = function(RED) {
       if (msg.hasOwnProperty("restart") && msg.restart === true) {
         // Step 1: Safely close the connection
         if (node.connection) {
-            node.log("Closing existing connection...");
+            node.log("Closing connection...");
+            node.log("Closed connection in ModbusTCPRead on restart event");
             node.connection = null;
         }
         
