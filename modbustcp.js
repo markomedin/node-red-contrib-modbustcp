@@ -92,7 +92,7 @@ module.exports = function(RED) {
       }
 
       node.modbusconn = new Modbus.client.TCP(socket,Number(node.unit_id));
-      let lastSocketErrorMessage = "";
+      // let lastSocketErrorMessage = "";
 
       const _onConnectEvent = () => {
         debug(`socket connected to ${socket.remoteAddress}:${socket.remotePort}`);
@@ -107,7 +107,7 @@ module.exports = function(RED) {
         else{
           this._state = 'ready';
         }
-        lastSocketErrorMessage = ""; //clear the last error
+        // lastSocketErrorMessage = ""; //clear the last error
       }
 
       const _onReadyEvent = () => {
@@ -126,10 +126,11 @@ module.exports = function(RED) {
 
       const _onErrorEvent = (err) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        if (lastSocketErrorMessage !== err.message) {
-            node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
-            lastSocketErrorMessage = err.message;
-        }
+        // if (lastSocketErrorMessage !== err.message) {
+        //     node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
+        //     lastSocketErrorMessage = err.message;
+        // }
+        node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         this._state = 'error';
         node.log("Destroying socket in ModbusTCPServerNode...");
