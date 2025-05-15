@@ -155,10 +155,11 @@ module.exports = function(RED) {
         this._state = 'error';
         node.log("Destroying socket...");
         socket.destroy();
+        node.log(`Socket error for ${identifier}: ${err.name}: ${err.message}`)
         node.status({
             fill: "red",
             shape: "dot",
-            text: `Error on ${identifier}: ${err.name}`
+            text: `Disconnected`
         });
         // updateStatus({
         //     fill: "red",
@@ -355,10 +356,12 @@ module.exports = function(RED) {
             node.log("Closing connection...");
             node.connection = null;
         }
-        if (socket) {
+
+        if (socket && socket.destroyed === false) {
             node.log("Destroying socket...");
             socket.destroy();
         }
+        
         node.status({ fill: "grey", shape: "dot", text: "Killed" });
         return;
       }
@@ -369,7 +372,8 @@ module.exports = function(RED) {
             node.log("Closing existing connection...");
             node.connection = null;
         }
-        if (socket) {
+        
+        if (socket && socket.destroyed === false) {
             node.log("Destroying socket...");
             socket.destroy();
         }
