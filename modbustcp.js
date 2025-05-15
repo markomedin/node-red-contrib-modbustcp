@@ -117,43 +117,54 @@ module.exports = function(RED) {
         debug('socket ready');
       }
 
-      let lastStatus = null;
-      let lastStatusTimestamp = 0;
-
-      const updateStatus = (status) => {
-          const now = Date.now();
-          if (status !== lastStatus || now - lastStatusTimestamp > 1000) { // 1-second threshold
-              node.status(status);
-              lastStatus = status;
-              lastStatusTimestamp = now;
-          }
-      };
+      // let lastStatus = null;
+      // let lastStatusTimestamp = 0;
+      //
+      // const updateStatus = (status) => {
+      //     const now = Date.now();
+      //     if (status !== lastStatus || now - lastStatusTimestamp > 1000) { // 1-second threshold
+      //         node.status(status);
+      //         lastStatus = status;
+      //         lastStatusTimestamp = now;
+      //     }
+      // };
 
       const _onCloseEvent = (hadError) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        debug(`socket closed for ${identifier}. HadError = ${hadError}`);
+        debug(`Socket closed for ${identifier}. HadError = ${hadError}`);
         this._state = 'disconnected';
-        updateStatus({
+        node.status({
             fill: "red",
             shape: "dot",
             text: `Disconnected from ${identifier}`
         });
+        // updateStatus({
+        //     fill: "red",
+        //     shape: "dot",
+        //     text: `Disconnected from ${identifier}`
+        // });
       }
 
       const _onErrorEvent = (err) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
         if (lastSocketErrorMessage !== err.message) {
-            node.error(`socket error for ${identifier}: ${err.name}: ${err.message}`);
+            node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
             lastSocketErrorMessage = err.message;
         }
-        debug(`socket error for ${identifier}: ${err.name}: ${err.message}`);
+        debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
         this._state = 'error';
+        node.log("Destroying socket...");
         socket.destroy();
-        updateStatus({
+        node.status({
             fill: "red",
             shape: "dot",
             text: `Disconnected from ${identifier}`
         });
+        // updateStatus({
+        //     fill: "red",
+        //     shape: "dot",
+        //     text: `Disconnected from ${identifier}`
+        // });
       }
 
       const _onTimeoutEvent = () => {
