@@ -328,56 +328,56 @@ module.exports = function(RED) {
 
     node.on("input", msg => {
 
-      if (msg.hasOwnProperty('kill') && msg.kill === true){
-        // Kill all timers
-        for (const timerName in timers) {
-            if (timers.hasOwnProperty(timerName)) {
-                clearInterval(timers[timerName]);
-                delete timers[timerName];
-            }}
-        // Clean up the socket and connection
-        if (node.connection) {
-            node.log("Closing connection...");
-            node.connection.close();
-            node.connection = null;
-        }
-        if (socket) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
-        node.status({ fill: "grey", shape: "dot", text: "Killed" });
-        return;
-      }
+      // if (msg.hasOwnProperty('kill') && msg.kill === true){
+      //   // Kill all timers
+      //   for (const timerName in timers) {
+      //       if (timers.hasOwnProperty(timerName)) {
+      //           clearInterval(timers[timerName]);
+      //           delete timers[timerName];
+      //       }}
+      //   // Clean up the socket and connection
+      //   if (node.connection) {
+      //       node.log("Closing connection...");
+      //       node.connection.close();
+      //       node.connection = null;
+      //   }
+      //   if (socket) {
+      //       node.log("Destroying socket...");
+      //       socket.destroy();
+      //   }
+      //   node.status({ fill: "grey", shape: "dot", text: "Killed" });
+      //   return;
+      // }
 
-      if (msg.hasOwnProperty("restart") && msg.restart === true) {
-        // Step 1: Safely close the connection
-        if (node.connection) {
-            node.log("Closing existing connection...");
-            node.connection.close();
-            node.connection = null;
-        }
-        if (socket) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
-
-        // Step 2: Update status to indicate restart
-        node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
-
-        // Step 3: Wait for 30 seconds
-        await new Promise((resolve) => setTimeout(resolve, 30000));
-
-        // Step 4: Reinitialize the client and start connection
-        node.log("Reinitializing connection...");
-        socket = new net.Socket();
-        modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-            node.connection = connection;
-            node.status({ fill: "green", shape: "dot", text: "Connected" });
-        });
-
-        node.log("Restart complete.");
-        return;
-      }
+      // if (msg.hasOwnProperty("restart") && msg.restart === true) {
+      //   // Step 1: Safely close the connection
+      //   if (node.connection) {
+      //       node.log("Closing existing connection...");
+      //       node.connection.close();
+      //       node.connection = null;
+      //   }
+      //   if (socket) {
+      //       node.log("Destroying socket...");
+      //       socket.destroy();
+      //   }
+      //
+      //   // Step 2: Update status to indicate restart
+      //   node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
+      //
+      //   // Step 3: Wait for 30 seconds
+      //   await new Promise((resolve) => setTimeout(resolve, 30000));
+      //
+      //   // Step 4: Reinitialize the client and start connection
+      //   node.log("Reinitializing connection...");
+      //   socket = new net.Socket();
+      //   modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
+      //       node.connection = connection;
+      //       node.status({ fill: "green", shape: "dot", text: "Connected" });
+      //   });
+      //
+      //   node.log("Restart complete.");
+      //   return;
+      // }
 
       const SetupLoop = (params) => {
         // console.log('Starting Loop', params.name);
