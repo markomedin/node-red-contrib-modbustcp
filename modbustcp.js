@@ -117,32 +117,11 @@ module.exports = function(RED) {
         debug('socket ready');
       }
 
-      // let lastStatus = null;
-      // let lastStatusTimestamp = 0;
-      //
-      // const updateStatus = (status) => {
-      //     const now = Date.now();
-      //     if (status !== lastStatus || now - lastStatusTimestamp > 1000) { // 1-second threshold
-      //         node.status(status);
-      //         lastStatus = status;
-      //         lastStatusTimestamp = now;
-      //     }
-      // };
-
       const _onCloseEvent = (hadError) => {
         const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
         debug(`Socket closed for ${identifier}. HadError = ${hadError}`);
         this._state = 'disconnected';
-        node.status({
-            fill: "red",
-            shape: "dot",
-            text: `Disconnected from ${identifier}`
-        });
-        // updateStatus({
-        //     fill: "red",
-        //     shape: "dot",
-        //     text: `Disconnected from ${identifier}`
-        // });
+        node.log(`Socket closed for ${identifier}. HadError = ${hadError}`);
       }
 
       const _onErrorEvent = (err) => {
@@ -155,17 +134,12 @@ module.exports = function(RED) {
         this._state = 'error';
         node.log("Destroying socket...");
         socket.destroy();
-        node.log(`Socket error for ${identifier}: ${err.name}: ${err.message}`)
+        node.log(`Check point 1: ${err.name}`);
         node.status({
             fill: "red",
             shape: "dot",
             text: `Disconnected`
         });
-        // updateStatus({
-        //     fill: "red",
-        //     shape: "dot",
-        //     text: `Disconnected from ${identifier}`
-        // });
       }
 
       const _onTimeoutEvent = () => {
@@ -357,10 +331,10 @@ module.exports = function(RED) {
             node.connection = null;
         }
 
-        if (socket && socket.destroyed === false) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
+        // if (socket && socket.destroyed === false) {
+        //     node.log("Destroying socket...");
+        //     socket.destroy();
+        // }
         
         node.status({ fill: "grey", shape: "dot", text: "Killed" });
         return;
@@ -373,10 +347,10 @@ module.exports = function(RED) {
             node.connection = null;
         }
         
-        if (socket && socket.destroyed === false) {
-            node.log("Destroying socket...");
-            socket.destroy();
-        }
+        // if (socket && socket.destroyed === false) {
+        //     node.log("Destroying socket...");
+        //     socket.destroy();
+        // }
 
         // Step 2: Update status to indicate restart
         node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
