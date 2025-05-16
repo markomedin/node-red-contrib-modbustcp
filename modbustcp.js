@@ -161,6 +161,7 @@ module.exports = function(RED) {
 
         // Log the cleanup process
         node.log("Modbus communication resources destroyed.");
+        node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
       }
 
 
