@@ -135,24 +135,29 @@ module.exports = function(RED) {
         // Update state to 'error'
         this._state = 'error';
 
-        // Destroy the socket if it exists
-        if (socket) {
-          node.log("Destroying socket due to error...");
-          socket.destroy();
-          socket.removeAllListeners();
-        }
+        try {
+          // Destroy the socket if it exists
+          if (socket) {
+            node.log("Destroying socket due to error...");
+            socket.destroy();
+            socket.removeAllListeners();
+          }
 
-        // Clear any active timers
-        if (timerID) {
-          node.log("Clearing active timers...");
-          clearInterval(timerID);
-          timerID = null;
-        }
+          // Clear any active timers
+          if (timerID) {
+            node.log("Clearing active timers...");
+            clearInterval(timerID);
+            timerID = null;
+          }
 
-        // Reset node state
-        node.connection = null;
-        bigArray = [];
-        node.status({ fill: "red", shape: "dot", text: "Error - Disconnected" });
+          // Reset node state
+          node.connection = null;
+          bigArray = [];
+          node.status({ fill: "red", shape: "dot", text: "Error - Disconnected" });
+        } catch (err) {
+          node.error(`Error during cleanup: ${err.message}`);
+          debug(`Error during cleanup: ${err.stack}`);
+        }
 
         // Log the cleanup process
         node.log("Modbus communication resources destroyed.");
