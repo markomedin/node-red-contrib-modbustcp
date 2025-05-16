@@ -82,7 +82,7 @@ module.exports = function(RED) {
     let recon;
 
     node.initializeModbusTCPConnection = function(socket, onConnect,handler) {
-      node.log( `Connecting to modbustcp slave at ${node.host}:${node.port} unit_id: ${node.unit_id}`);
+      timestamplog( `Connecting to modbustcp slave at ${node.host}:${node.port} unit_id: ${node.unit_id}`);
 
       if (Number(node.reconnecttimeout) > 0) {
         consettings.autoReconnect = true;
@@ -106,6 +106,7 @@ module.exports = function(RED) {
         else{
           this._state = 'ready';
         }
+
       }
 
       const _onReadyEvent = () => {
@@ -115,47 +116,19 @@ module.exports = function(RED) {
         debug('socket ready');
       }
 
-      let isRestarting = false; // Flag to track restart state
-
       const _onCloseEvent = (hadError) => {
-        const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        debug(`Socket closed for ${identifier}. HadError = ${hadError}`);
+        debug('socket closed. HadError = ', hadError);
         this._state = 'disconnected';
-        node.log(`Socket closed for ${identifier}. HadError = ${hadError} in ModbusTCPServerNode`);
-
-        // Prevent multiple restarts
-        if (isRestarting) {
-          node.log("Restart already in progress. Skipping...");
-          return;
-        }
-
-        isRestarting = true; // Set the flag to prevent multiple triggers
-
-        // Trigger the restart input
-        node.log(`Restarting connection to ${identifier}...`);
-        node.emit("input", { restart: true });
-
-        // Reset the flag after a delay to allow the restart process to complete
-        setTimeout(() => {
-          isRestarting = false;
-          node.log("Restart flag reset.");
-        }, 30000); // Adjust the delay as needed
       }
 
       const _onErrorEvent = (err) => {
-        const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
-        node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
-        debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
+        node.error(`socket error: ${err.name}: ${err.message}`)
+        debug(`socket error: ${err.name}: ${err.message}`)
         this._state = 'error';
-        node.log(`Detected socket error in ModbusTCPServerNode: ${err.message}`);
-        node.status({
-            fill: "red",
-            shape: "dot",
-            text: `Disconnected`
-        });
-        // Explicitly emit the close event
-        socket.emit('close', true); // Pass `true` to indicate an error occurred
+        socket.destroy();
+        //socket.connect(consettings);
       }
+
 
       const _onTimeoutEvent = () => {
         node.warn('socket timeout');
@@ -168,12 +141,6 @@ module.exports = function(RED) {
       socket.on('error', _onErrorEvent);
       socket.on('timeout', _onTimeoutEvent );
 
-      // Listen for the custom error event
-      socket.on('custom_error', (err) => {
-        node.error(`Custom error detected: ${err.message}`);
-        _onErrorEvent(err);
-      });
-
       recon = new Reconnect(socket,consettings);
 
       socket.connect(consettings);
@@ -181,16 +148,12 @@ module.exports = function(RED) {
       handler(node.modbusconn);
 
       node.on("close", function() {
-        node.log(`Disconnecting from modbustcp slave at ${socket.remoteAddress}:${socket.remotePort}`);
+        timestamplog(`Disconnecting from modbustcp slave at ${socket.remoteAddress}:${socket.remotePort}`);
         socket.removeListener('connect', _onConnectEvent);
         socket.removeListener('ready', _onReadyEvent);
         socket.removeListener('close', _onCloseEvent);
         socket.removeListener('error', _onErrorEvent);
         socket.removeListener('timeout', _onTimeoutEvent );
-        socket.removeListener('custom_error', (err) => {
-          node.error(`Custom error detected: ${err.message}`);
-          _onErrorEvent(err);
-        });
         recon.end();
       });
 
@@ -241,13 +204,8 @@ module.exports = function(RED) {
     let timers = {}; // used as a collection of running timers externally injected
 
     node.onCloseEvent = function() {
-      const identifier = `${modbusTCPServer.host}:${modbusTCPServer.port} (${node.name || "Unnamed"})`;
-      node.log(`Disconnected from ${identifier} in ModbusTCPRead`);
-      node.status({
-        fill: "red",
-        shape: "dot",
-        text: `Disconnected from ${identifier}`
-      });
+      timestamplog(node.name + " was disconnected or was unable to connect");
+      node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
       clearInterval(timerID);
       timerID = null;
     };
@@ -318,7 +276,7 @@ module.exports = function(RED) {
     });
 
     node.on("close", function() {
-      node.log(node.name + ":" + "Closing");
+      timestamplog(node.name + ":" + "Closing");
 
       clearInterval(timerID);
       timerID = null;
@@ -349,44 +307,6 @@ module.exports = function(RED) {
             clearInterval(timers[msg.payload.name]);
           }
         }
-        return;
-      }
-
-      if (msg.hasOwnProperty("restart") && msg.restart === true) {
-        // Update status to indicate restart
-        node.status({ fill: "yellow", shape: "dot", text: "Restarting..." });
-
-        // Log the restart process
-        node.log("Restarting connection...");
-
-        // Destroy existing socket if it exists
-        if (socket) {
-          node.log("Destroying existing socket...");
-          socket.destroy();
-          socket.removeAllListeners();
-        }
-
-        // Clear any active timers
-        if (timerID) {
-          node.log("Clearing active timers...");
-          clearInterval(timerID);
-          timerID = null;
-        }
-
-        // Reset state
-        node.connection = null;
-        bigArray = [];
-        node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
-
-        //Reinitialize the client and start connection
-        node.log("Reinitializing connection...");
-        socket = new net.Socket();
-        modbusTCPServer.initializeModbusTCPConnection(socket, node.onConnectEvent, (connection) => {
-            node.connection = connection;
-            node.status({ fill: "green", shape: "dot", text: "Restarted" });
-        });
-
-        node.log("Restart complete.");
         return;
       }
 
@@ -464,7 +384,7 @@ module.exports = function(RED) {
 
         if (params.name){
           timers[params.name] = loopId;
-          // console.log("Current timers:", Object.keys(timers)); // Print active timers
+          // console.log("Timers:", params.name);
         }
       }
 
@@ -636,8 +556,10 @@ module.exports = function(RED) {
           text: "Error"
         });
 
+        timestamplog(err);
+
         node.error("ModbusTCPClient: " + JSON.stringify(err));
-        socket.emit('custom_error',{err: 'local error', message: 'Locally emitted error'});
+        socket.emit('error',{err: 'local error', message: 'Locally emitted error'});
         return false;
       }
       return true;
@@ -663,7 +585,7 @@ module.exports = function(RED) {
     let socket = new net.Socket();
 
     node.onCloseEvent = function() {
-      node.log(`${node.name} was Disconnected`);
+      timestamplog(`${node.name} was Disconnected`);
       node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
     };
 
@@ -695,6 +617,7 @@ module.exports = function(RED) {
     function modbus_error_check(err) {
       if (err) {
         node.status({ fill: "red", shape: "dot", text: "Error" });
+        timestamplog(err);
         node.error(node.name + ": " + JSON.stringify(err));
         return false;
       }
@@ -808,7 +731,7 @@ module.exports = function(RED) {
     });
 
     node.on("close", function() {
-      node.log(node.name + ":" + "Closing");
+      timestamplog(node.name + ":" + "Closing");
       node.status({ fill: "grey", shape: "dot", text: "Disconnected" });
       socket.removeListener("connect", node.onConnectEvent);
       socket.removeListener("close", node.onCloseEvent);
