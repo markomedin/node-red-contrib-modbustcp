@@ -144,7 +144,7 @@ module.exports = function(RED) {
           }
 
           // Clear any active timers
-          if (timerID) {
+          if (typeof timerID !== 'undefined' && timerID) {
             node.log("Clearing active timers...");
             clearInterval(timerID);
             timerID = null;
