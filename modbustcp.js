@@ -174,6 +174,7 @@ module.exports = function(RED) {
       socket.on('ready', _onReadyEvent);
       socket.on('close', _onCloseEvent);
       socket.on('error', _onErrorEvent);
+      socket.on('custom_error', _onErrorEvent); // Custom error event
       socket.on('timeout', _onTimeoutEvent );
 
       recon = new Reconnect(socket,consettings);
@@ -188,6 +189,7 @@ module.exports = function(RED) {
         socket.removeListener('ready', _onReadyEvent);
         socket.removeListener('close', _onCloseEvent);
         socket.removeListener('error', _onErrorEvent);
+        socket.removeListener('custom_error', _onErrorEvent); // Custom error event
         socket.removeListener('timeout', _onTimeoutEvent );
         recon.end();
       });
@@ -594,7 +596,7 @@ module.exports = function(RED) {
         timestamplog(err);
 
         node.error("ModbusTCPClient: " + JSON.stringify(err));
-        socket.emit('error',{err: 'local error', message: 'Locally emitted error'});
+        socket.emit('custom_error',{err: 'local error', message: 'Locally emitted error'});
         return false;
       }
       return true;
