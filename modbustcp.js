@@ -122,11 +122,40 @@ module.exports = function(RED) {
       }
 
       const _onErrorEvent = (err) => {
-        node.error(`socket error: ${err.name}: ${err.message}`)
-        debug(`socket error: ${err.name}: ${err.message}`)
+        // node.error(`socket error: ${err.name}: ${err.message}`)
+        // debug(`socket error: ${err.name}: ${err.message}`)
+        // this._state = 'error';
+        // socket.destroy();
+        // socket.connect(consettings);
+
+        const identifier = `${consettings.host}:${consettings.port} (${node.name || "Unnamed"})`;
+        node.error(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
+        debug(`Socket error for ${identifier}: ${err.name}: ${err.message}`);
+
+        // Update state to 'error'
         this._state = 'error';
-        socket.destroy();
-        //socket.connect(consettings);
+
+        // Destroy the socket if it exists
+        if (socket) {
+          node.log("Destroying socket due to error...");
+          socket.destroy();
+          socket.removeAllListeners();
+        }
+
+        // Clear any active timers
+        if (timerID) {
+          node.log("Clearing active timers...");
+          clearInterval(timerID);
+          timerID = null;
+        }
+
+        // Reset node state
+        node.connection = null;
+        bigArray = [];
+        node.status({ fill: "red", shape: "dot", text: "Error - Disconnected" });
+
+        // Log the cleanup process
+        node.log("Modbus communication resources destroyed.");
       }
 
 
