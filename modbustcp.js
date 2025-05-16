@@ -593,7 +593,7 @@ module.exports = function(RED) {
           text: "Error"
         });
 
-        timestamplog(err);
+        // timestamplog(err);
 
         node.error("ModbusTCPClient: " + JSON.stringify(err));
         socket.emit('custom_error',{err: 'local error', message: 'Locally emitted error'});
